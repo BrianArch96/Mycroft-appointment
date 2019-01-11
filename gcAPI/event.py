@@ -3,8 +3,9 @@ import datetime
 from googleapiclient.discovery import build
 from httplib2 import Http
 from oauth2client import file, client, tools
+import os
 
-def addEvent():
+def addEvent(EVENT):
     try:
         import argparse
         flags = argparse.ArgumentParser(parents=[tools.argparser]).parse_args()
@@ -12,19 +13,20 @@ def addEvent():
         flags = None
 
     SCOPES = 'https://www.googleapis.com/auth/calendar'
-    store = file.Storage('token.json')
+    store = file.Storage(os.path.join(os.path.dirname(os.path.abspath(__file__)),'token.json'))
     creds = store.get()
     if not creds or creds.invalid:
-        flow = client.flow_from_clientsecrets('credentials.json', SCOPES)
+        print(os.path.join(os.path.dirname(os.path.abspath(__file__)),'credentials.json'))
+        flow = client.flow_from_clientsecrets(os.path.join(os.path.dirname(os.path.abspath(__file__)),'credentials.json'), SCOPES)
         creds = tools.run_flow(flow, store, flags) \
                 if flags else tools.run(flow, store)
     CAL = build('calendar', 'v3', http=creds.authorize(Http()))
     GMT_OFF= '-00:00'
-    EVENT = {
-        'summary': 'Testing this thing',
-        'start': {'dateTime': '2019-01-12T19:00:00%s' % GMT_OFF},
-        'end':   {'dateTime': '2019-01-12T22:00:00%s' % GMT_OFF},
-    }
+   # EVENT = {
+   #     'summary': 'Testing this thing',
+   #     'start': {'dateTime': '2019-01-12T19:00:00%s' % GMT_OFF},
+   #     'end':   {'dateTime': '2019-01-12T22:00:00%s' % GMT_OFF},
+   # }
     e = CAL.events().insert(calendarId='primary',
             sendNotifications=True, body=EVENT).execute()
 

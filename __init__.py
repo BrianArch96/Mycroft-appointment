@@ -29,17 +29,21 @@ class TemplateSkill(MycroftSkill):
 
     @intent_handler(IntentBuilder("").require("Event"))
     def handle_add_event_intent(self, message):
+        GMT_OFF = '-00:00'
         self._summary = self.get_response("summary")
-        self._start_time = extract_datetime(self.get_response("start_time"))[0].strftime('%Y-%m-%YT%H:%M:%S%s')
-        self._end_time = extract_datetime(self.get_response("end_time"))
+        self._start_time = extract_datetime(self.get_response("start_time"))[0].strftime('%Y-%m-%dT%H:%M:%S')
+        self._end_time = extract_datetime(self.get_response("end_time"))[0].strftime('%Y-%m-%dT%H:%M:%S')
+        
+        self._start_time += GMT_OFF
+        self._end_time += GMT_OFF
+
         EVENT = {
                 'summary': self._summary,
                 'start': {'dateTime': self._start_time},
                 'end': {'dateTime': self._end_time},
         }
         
-        event.addEvent()
-        print(self._start_time)
+        event.addEvent(EVENT)
 
 
     @intent_handler(IntentBuilder("").require("add_event"))
