@@ -8,22 +8,62 @@
 # when the skill gets installed later by a user.
 
 from .gcAPI import event
+from .gcAPI import quickstart
 from adapt.intent import IntentBuilder
 from mycroft.skills.core import MycroftSkill, intent_handler
 from mycroft.util.log import LOG
 from datetime import datetime, timedelta, date
 from mycroft.util.parse import extract_datetime
 
-# Each skill is contained within its own class, which inherits base methods
-# from the MycroftSkill class.  You extend this class as shown below.
 
-# TODO: Change "Template" to a unique name for your skill
-class TemplateSkill(MycroftSkill):
+def remove_z(tz_string):
+    return tz_string[:-1]
+
+def getEvents(n):
+    return quickstart.get_events(n)
+
+def is_today(d):
+    return d.date() == datetime.today().date()
+
+def is_tomorrow(d):
+    return d.date() == datetime.today().date() + timedelta(days=1)
+
+def time_format(date_t):
+    time = date_t.strftime("%H:%M")
+
+    response = ""
+
+    if time[0] == '0':
+        if time[1] == '0':
+            response = " 0 0"
+        else:
+            reponse = "0 " + time[1]
+    else:
+        response += time[0:2]
+
+    if time[3] == '0':
+        if time[4] == '0':
+            response += " o clock"
+        else:
+            response += "0 " + time[4]
+    else:
+        if time[0] == "0":
+            reponse += " " + time[3:5]
+        else:
+            response += ":" + time[3:5]
+
+    return response
+
+class StudentAppointmentSkill(MycroftSkill):
+
 
     # The constructor of the skill, which calls MycroftSkill's constructor
     def __init__(self):
-        super(TemplateSkill, self).__init__(name="TemplateSkill")
+        super(StudentAppointmentSkill, self).__init__(name="StudentAppointmentSkill")
+        import logging
+        logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
         print("appointment") 
+        self._events = quickstart.get_events(10)
         # Initialize working variables used within the skill.
         self.count = 0
 
@@ -46,19 +86,87 @@ class TemplateSkill(MycroftSkill):
         event.addEvent(EVENT)
 
 
-    @intent_handler(IntentBuilder("").require("add_event"))
-    def handle_add_summary(self, message):
-        print("Hello")
-    # The "stop" method defines what Mycroft does when told to stop during
-    # the skill's execution. In this case, since the skill's functionality
-    # is extremely simple, there is no need to override it.  If you DO
-    # need to implement stop, you should return True to indicate you handled
-    # it.
-    #
-    # def stop(self):
-    #    return False
+    @intent_handler(IntentBuilder("").require("Upcoming_event"))
+    def getNextEvent(self, message):
+        if not self._events:
+            self.speak_dialog("NoNextApp")
 
-# The "create_skill()" method is used to create an instance of the skill.
-# Note that it's outside the class itself.
+        event = self._events[0]
+        start = event['start'].get('dateTime')
+        print(remove_z(start))
+        d = datetime.strptime(remove_z(start), '%Y-%m-%dT%H:%M:%S')
+        start_t = time_format(d)
+        print(start_t)
+        start_d = d.strftime('%-d %B')
+        if is_today(d):
+            data = {'appointment': event['summary'], 'time': start_t}
+            self.speak_dialog("NextAppToday", data)
+        elif is_tomorrow(d):
+            print('tomorrow')
+            data = {'appointment': event['summary'], 'time': start_t}
+            self.speak_dialog("NextAppTomorrow", data)
+        else:
+            data = {'appointment': event['summary'], 'time': start_t, 'date': start_d}
+            self.speak_dialog("NextAppDate", data)
+            print('another date')
+    def handle_upcoming_event(self, message):
+        getNextEvent(getEvents(10))
+
+
+    @intent_handler(IntentBuilder("").require("event_today"))
+    def checkTodaysEvents(self, message):
+        print("Hello")
+        if not self._events:
+            self.speak_dialog("NoNextAppToday")
+        
+        n_events = 0
+        for event in self._events:
+            start = event['start'].get('dateTime')
+            d = datetime.strptime(remove_z(start), '%Y-%m-%dT%H:%M:%S')
+            start_t = time_format(d)
+            print(start_t, " hi")
+            start_d = d.strftime('%-d %B')
+            if is_today(d):
+                n_events += n_events +1
+        
+        start = self._events[0]['start'].get('dateTime')
+        d = datetime.strptime(remove_z(start), '%Y-%m-%dT%H:%M:%S')
+        start_t = time_format(d)
+
+        if n_events == 0:
+            self.speak_dialog("NoNextAppToday")
+        else:
+            data = {'appointment':self._events[0]['summary'], 'time': start_t, 'n_events': n_events}
+            self.speak_dialog('AppointmentsToday', data)
+
+    @intent_handler(IntentBuilder("").require("event_tomorrow"))
+    def checkTomorrowsEvents(self, message):
+        print("Hello")
+        if not self._events:
+            self.speak_dialog("NoNextAppTomorrow")
+        
+        n_events = 0
+        f_event = None
+
+        for event in self._events:
+            start = event['start'].get('dateTime')
+            d = datetime.strptime(remove_z(start), '%Y-%m-%dT%H:%M:%S')
+            start_t = time_format(d)
+            start_d = d.strftime('%-d %B')
+            if is_tomorrow(d):
+                if n_events == 0:
+                    f_event = event          
+                n_events += n_events +1
+        
+        if n_events == 0:
+            self.speak_dialog("NoNextAppTomorrow")
+        
+        start = f_event['start'].get('dateTime')
+        d = datetime.strptime(remove_z(start), '%Y-%m-%dT%H:%M:%S')
+        start_t = time_format(d)
+
+        data = {'appointment':f_event['summary'], 'time': start_t, 'n_events': n_events}
+        self.speak_dialog("AppointmentsTomorrow", data)
+
 def create_skill():
-    return TemplateSkill()
+    return StudentAppointmentSkill()
