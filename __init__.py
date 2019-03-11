@@ -90,6 +90,7 @@ class StudentAppointmentSkill(MycroftSkill):
         }
         
         event.addEvent(EVENT)
+        self.speak_dialog("ok")
 
 
     @intent_handler(IntentBuilder("").require("Upcoming_event"))
