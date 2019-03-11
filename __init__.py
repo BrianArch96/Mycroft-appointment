@@ -92,7 +92,16 @@ class StudentAppointmentSkill(MycroftSkill):
         event.addEvent(EVENT)
         self.speak_dialog("ok")
 
-
+    @intent_handler(IntentBuilder("").require("anything_else").require("more"))
+    def more_appointments(self, message):
+        print("dad")
+        events = self.checkForMore(message.data.get("more"))
+        if events is None:
+            return
+        self.speak_dialog("you_have_more", {"context": message.data.get("more")})
+        for event in events:
+            self.speak_dialog("NextAppDate", event)
+        
     @intent_handler(IntentBuilder("").require("Upcoming_event"))
     def getNextEvent(self, message):
         self._events = quickstart.get_events(10)
@@ -134,18 +143,45 @@ class StudentAppointmentSkill(MycroftSkill):
             if is_today(d):
                 data = {'appointment':event['summary'], 'time': start_t, 'date': start_d}
                 self.speak_dialog('NextAppToday', data)
+                self.set_context("more", "week")
+                print("re")
                 return
             elif is_tomorrow(d):
                 data = {'appointment':event['summary'], 'time': start_t, 'date': start_d}
                 self.speak_dialog('NextAppDate', data)
+                self.set_context("more", "week")
+                print("re")
                 return
             else:
                 for x in range(2, WEEK+1):
                     if is_givenDays(d, x):
                         data = {'appointment':event['summary'], 'time': start_t, 'date': start_d}
                         self.speak_dialog('NextAppDate', data)
+                        print("re")
+                        self.set_context("more", "week")
                         return
         self.speak_dialog("NoNextAppThisWeek")
+
+    def checkForMore(self, context):
+        self._events = quickstart.get_events(10)
+        c_events = []
+        for event in self._events[1:]:
+            start = event['start'].get('dateTime')
+            d = datetime.strptime(remove_z(start), '%Y-%m-%dT%H:%M:%S')
+            start_t = time_format(d)
+            start_d = d.strftime('%-d %B')
+            if context == "week":
+                for x in range(0, WEEK+1):
+                    if is_givenDays(d,x):
+                        c_events.append({'appointment':event['summary'], 'time': start_t, 'date': start_d})
+            elif context == "month":
+                for x in range(0, MONTH+1):
+                    if is_givenDays(d,x):
+                        c_events.append({'appointment':event['summary'], 'time': start_t, 'date': start_d})
+        if c_events is None:
+            self.speak_dialog("no_more_appointments")
+            return
+        return c_events
 
     @intent_handler(IntentBuilder("").require("event_tm"))
     def checkThisMonth(self, message):
@@ -162,23 +198,25 @@ class StudentAppointmentSkill(MycroftSkill):
             if is_today(d):
                 data = {'appointment':event['summary'], 'time': start_t, 'date': start_d}
                 self.speak_dialog('NextAppToday', data)
+                self.set_context("more", "month")
                 return
             elif is_tomorrow(d):
                 data = {'appointment':event['summary'], 'time': start_t, 'date': start_d}
                 self.speak_dialog('NextAppDate', data)
+                self.set_context("more", "month")
                 return
             else:
                 for x in range(2, MONTH+1):
                     if is_givenDays(d, x):
                         data = {'appointment':event['summary'], 'time': start_t, 'date': start_d}
                         self.speak_dialog('NextAppDate', data)
+                        self.set_context("more", "month")
                         return
         self.speak_dialog("NoNextAppThisMonth")
 
     @intent_handler(IntentBuilder("").require("event_today"))
     def checkTodaysEvents(self, message):
         self._events = quickstart.get_events(10)
-        prinddt("Hello")
         if not self._events:
             self.speak_dialog("NoNextAppToday")
             return
