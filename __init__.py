@@ -96,12 +96,27 @@ class StudentAppointmentSkill(MycroftSkill):
     def more_appointments(self, message):
         print("dad")
         events = self.checkForMore(message.data.get("more"))
-        if events is None:
+        print(len(events), "length")
+        if len(events) == 0:
+            self.speak_dialog("no_more")
             return
         self.speak_dialog("you_have_more", {"context": message.data.get("more")})
         for event in events:
+            print(event, "I")
             self.speak_dialog("NextAppDate", event)
-        
+    
+    @intent_handler(IntentBuilder("").require("remove_appointment").require("appointment"))
+    def removeAppointment(self, message):
+        for ev in quickstart.get_events(30):
+            if ev["summary"] == message.data.get("appointment"):
+                try:
+                    print(ev["id"])
+                    event.removeEvent(ev["id"])
+                    self.speak_dialog("I've successfully removed the given appointment from your Google Calendar")
+                except Exception as e:
+                    print(e)
+                    self.speak_dialog("Could not find event, possibly not listed")
+
     @intent_handler(IntentBuilder("").require("Upcoming_event"))
     def getNextEvent(self, message):
         self._events = quickstart.get_events(10)
@@ -182,6 +197,21 @@ class StudentAppointmentSkill(MycroftSkill):
             self.speak_dialog("no_more_appointments")
             return
         return c_events
+
+    @intent_handler(IntentBuilder("").require("list_appointments"))
+    def list_assignments(self, message):
+        self._events = quickstart.get_events(10)
+        if not self._events:
+            self.speak_dialog("no_more")
+            return
+        self.speak_dialog("Here is a list of upcoming appointments")
+        for event in self._events:
+            start = event['start'].get('dateTime')
+            d = datetime.strptime(remove_z(start), '%Y-%m-%dT%H:%M:%S')
+            start_t = time_format(d)
+            start_d = d.strftime('%-d %B')
+            self.speak_dialog("appointment_details", { "sum": event["summary"], "start": start_d})
+
 
     @intent_handler(IntentBuilder("").require("event_tm"))
     def checkThisMonth(self, message):
